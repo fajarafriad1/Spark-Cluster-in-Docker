@@ -1,0 +1,36 @@
+# Gunakan base image Bitnami Spark
+FROM docker.io/bitnami/spark:3.5.0
+
+# Switch ke root untuk membuat user baru
+USER root
+
+RUN bash -c '\
+  if ! getent group sparkuser >/dev/null; then groupadd -g 1000 sparkuser; fi && \
+  if ! id -u sparkuser >/dev/null 2>&1; then useradd -m -u 1000 -g 1000 -s /bin/bash sparkuser; fi && \
+  chown -R sparkuser:sparkuser /opt/bitnami && \
+  chmod -R u+rwX /opt/bitnami \
+'
+
+# Pastikan direktori `conf` bisa ditulis
+RUN chmod -R u+rwX /opt/bitnami/spark/conf
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    libpq-dev \
+    net-tools \
+    iputils-ping \
+    iproute2 \
+    dnsutils \
+    telnet \
+    netcat-openbsd \
+    curl \
+    wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# Switch ke user sparkuser (UID 1000)
+USER sparkuser
+
+# Salin requirements dan install Python dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt

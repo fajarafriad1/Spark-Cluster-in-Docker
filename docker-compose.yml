@@ -1,0 +1,148 @@
+version: "3.3"
+
+services:
+
+  spark-master:
+    container_name: spark-master
+    hostname: spark-master
+    image: docker.io/bitnami/spark:3.5.0
+    ports:
+      - "9190:8080"      # Spark master web UI
+      - "7077:7077"      # Spark master communication
+    volumes:
+      - ./spark/apps:/opt/spark-apps
+      - ./spark/data:/opt/spark-data
+      - ./spark/spark-events:/opt/bitnami/spark/spark-events
+      - ./spark/conf/:/opt/bitnami/spark/conf/
+    build:
+      context: .
+      dockerfile: Dockerfile_spark
+    environment:
+      - SPARK_MODE=master
+      - SPARK_LOCAL_IP=spark-master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_EVENTLOG_ENABLED=true
+    networks:
+      default:
+        ipv4_address: 172.30.4.1
+
+  spark-worker-1:
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    image: docker.io/bitnami/spark:3.5.0
+    ports:
+      - "9191:8080"
+      - "7001:7000"
+    depends_on:
+      - spark-master
+    build:
+      context: .
+      dockerfile: Dockerfile_spark
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_EXECUTOR_MEMORY=1G
+      - SPARK_LOCAL_IP=spark-worker-1
+      - SPARK_EVENTLOG_ENABLED=true
+    volumes:
+      - ./spark/apps:/opt/spark-apps
+      - ./spark/data:/opt/spark-data
+      - ./spark/spark-events:/opt/bitnami/spark/spark-events
+      - ./spark/conf/:/opt/bitnami/spark/conf/
+    networks:
+      default:
+        ipv4_address: 172.30.4.2
+
+  spark-worker-2:
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    image: docker.io/bitnami/spark:3.5.0
+    ports:
+      - "9192:8080"
+      - "7002:7000"
+    depends_on:
+      - spark-master
+    build:
+      context: .
+      dockerfile: Dockerfile_spark
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_EXECUTOR_MEMORY=1G
+      - SPARK_LOCAL_IP=spark-worker-2
+      - SPARK_EVENTLOG_ENABLED=true
+    volumes:
+      - ./spark/apps:/opt/spark-apps
+      - ./spark/data:/opt/spark-data
+      - ./spark/spark-events:/opt/bitnami/spark/spark-events
+      - ./spark/conf/:/opt/bitnami/spark/conf/
+    networks:
+      default:
+        ipv4_address: 172.30.4.3
+
+  spark-history-server:
+    container_name: spark-history-server
+    hostname: spark-history-server
+    image: docker.io/bitnami/spark:3.5.0
+    command: bin/spark-class org.apache.spark.deploy.history.HistoryServer
+    ports:
+      - '18080:18080'
+    depends_on:
+      - spark-master
+      - spark-worker-1
+      - spark-worker-2
+    build:
+      context: .
+      dockerfile: Dockerfile_spark
+    environment:
+      - SPARK_DAEMON_JAVA_OPTS=-Dspark.history.fs.logDirectory=/opt/bitnami/spark/spark-events
+    volumes:
+      - ./spark/data:/opt/bitnami/spark/custom_data
+      - ./spark/src:/opt/bitnami/spark/src
+      - ./spark/jars:/opt/bitnami/spark/connectors/jars
+      - ./spark/spark-events:/opt/bitnami/spark/spark-events
+      - ./spark/conf/:/opt/bitnami/spark/conf/
+    networks:
+      default:
+        ipv4_address: 172.30.4.4
+
+  jupyterlab:
+    container_name: jupyterlab
+    hostname: jupyterlab
+    image: jupyter/pyspark-notebook:latest
+    build:
+      context: .
+      dockerfile: Dockerfile_jupyter
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+      - "4041:4041"
+      - "4042:4042"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./spark/spark-events:/opt/bitnami/spark/spark-events
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER_URL=spark://spark-master:7077
+    command: >
+      bash -c "umask 000 && start-notebook.sh --NotebookApp.token='' --NotebookApp.password=''"
+    networks:
+      default:
+        ipv4_address: 172.30.4.5
+
+
+volumes:
+  spark-logs:
+    driver: local
+
+networks:
+  default:
+    name: network-docker_default
+    external: true

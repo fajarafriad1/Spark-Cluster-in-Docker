@@ -1,0 +1,29 @@
+# Use the existing Jupyter PySpark notebook image 
+FROM jupyter/pyspark-notebook:latest
+
+# Switch to root to install libraries and change user UID
+USER root
+
+# Install system dependencies required for psycopg2 and networking tools
+RUN apt-get update && \
+    apt-get install -y \
+    libpq-dev \
+    net-tools \
+    iputils-ping \
+    iproute2 \
+    dnsutils \
+    telnet \
+    netcat \
+    curl \
+    wget \
+    acl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the requirements.txt into the container
+COPY requirements.txt /tmp/
+
+# Install the Python libraries from requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Switch back to jovyan user (now UID 1001)
+USER jovyan
