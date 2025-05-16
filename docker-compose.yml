@@ -138,11 +138,9 @@ services:
         ipv4_address: 172.30.4.5
 
 
-volumes:
-  spark-logs:
-    driver: local
-
 networks:
   default:
-    name: network-docker_default
-    external: true
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.4.0/24
